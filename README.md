@@ -28,7 +28,7 @@ npm install express dotenv nodemon
 ## Roadmap
 
 - [x] Clean les datas CSV => ne pas importer les colonnes inutiles.
-- [ ] Impoter les données de `2024_T2_sites_Metropole.csv` dans MongoDB.
+- [x] Impoter les données de `2024_T2_sites_Metropole.csv` dans MongoDB.
 - [ ] Créer un set de fake data pour interagir avec les données des antennes. => facture téléphone (appel, sms, data).
   - [ ] Créer une affaires.
   - [ ] Créer des individus.
@@ -36,9 +36,10 @@ npm install express dotenv nodemon
   - [ ] Créer des temoinages
   - [ ] Créer des appels entre les individus.
 
-## Question
+## Hiérarchie et transmission d'information
 
-- Une seule affaire avec des individus, appel, lieux (=> l'appel est lié à un lieu avec les coordonnées).
-- Intéractif ou statique ?
-- Comment on va gérer les appels entre les individus ?
-- Comment on affiche les données ?
+`Alice Dupont` communique des informations à `Bob Martin`.
+`Bob Martin` les transmet à `Clara Petit`.
+`Clara Petit` informe `David Legrand`.
+`David Legrand` relaye ces informations à `Emma Caron`.
+`Emma Caron` contacte enfin `François Leroy`.
