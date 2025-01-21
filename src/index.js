@@ -1,9 +1,10 @@
+require('dotenv').config();
 const { importData } = require('./import');
 
-const csvFile = '../data/sem-data.csv';
-const uri = 'your_mongodb_uri';
-const dbName = 'your_database_name';
-const collectionName = 'your_collection_name';
+const csvFile = process.env.CSV_FILE_PATH;
+const uri = process.env.MONGO_URI;
+const dbName = process.env.MONGO_DB_NAME;
+const collectionName = process.env.MONGO_COLLECTION_NAME;
 
 importData(csvFile, uri, dbName, collectionName)
   .then(() => console.log('Data import initiated'))
