@@ -18,16 +18,13 @@ async function importSites(csvFile, uri, dbName) {
 
   const documents = [];
   fs.createReadStream(csvFile)
-    .pipe(csv({ separator: ';' }))
+    .pipe(csv({ separator: ',' }))
     .on('data', (row) => {
       const document = {
         nom_op: row.nom_op,
-        id_station_anfr: row.id_station_anfr,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        nom_reg: row.nom_reg,
-        nom_dep: row.nom_dep,
-        insee_dep: row.insee_dep,
+        id_station_anfr: parseInt(row.id_station_anfr),
+        latitude: parseFloat(row.latitude),
+        longitude: parseFloat(row.longitude),
         nom_com: row.nom_com,
       };
       documents.push(document);
