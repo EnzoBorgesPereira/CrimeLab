@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: '../../.env' });
 const { importAllFadettes } = require('./import_fadettes');
 const { importAllSites } = require('./import_sites');
 
