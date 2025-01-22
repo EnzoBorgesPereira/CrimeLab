@@ -1,13 +1,15 @@
-const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config({ path: '../../.env' });
+
+const express = require('express');
 const connectDB = require('./config/database');
+const { connectNeo4j } = require('./config/neo4j');
 
-dotenv.config();
-
+// Connect to databases
 connectDB();
+connectNeo4j();
 
 const app = express();
-
 app.use(express.json());
 
 const PORT = process.env.PORT || 5001;
