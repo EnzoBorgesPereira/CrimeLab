@@ -22,11 +22,5 @@ const connectNeo4j = () => {
     return driver;
 };
 
-const getSession = () => {
-    if (!driver) {
-        throw new Error('Neo4j driver non initialisé. Appelez connectNeo4j() avant.');
-    }
-    return driver.session();
-};
 
-module.exports = { connectNeo4j, getSession };
+module.exports = { connectNeo4j};
