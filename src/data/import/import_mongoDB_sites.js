@@ -41,11 +41,11 @@ async function importSites(csvFile, uri, dbName) {
     });
 }
 
-async function importAllSites(directory, uri, dbName) {
+async function importMongoDBSites(directory, uri, dbName) {
   const files = fs.readdirSync(directory).filter(file => path.extname(file) === '.csv');
   for (const file of files) {
     await importSites(path.join(directory, file), uri, dbName);
   }
 }
 
-module.exports = { importAllSites };
+module.exports = { importMongoDBSites };
