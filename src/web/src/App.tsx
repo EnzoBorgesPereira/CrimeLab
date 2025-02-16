@@ -30,23 +30,25 @@ const SigmaGraph: React.FC = () => {
     const graph = graphRef.current;
 
     session
-      .run("MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude")
+      .run("MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation")
       .then((result) => {
-        console.log(` Nombre de relations: ${result.records.length}`);
+        console.log(`Nombre de relations: ${result.records.length}`);
 
         result.records.forEach((record, index) => {
           const personId = record.get("Numero").toString();
           const siteName = record.get("Commune");
           const lat = record.get("Latitude");
           const lon = record.get("Longitude");
+          const relationLabel = record.get("Relation");
 
           const siteId = `${siteName}-${index}`;
+          const relationId = `${personId}-${siteId}-rel`;
 
           // Ajout des personnes (s'ils n'existent pas déjà)
           if (!graph.hasNode(personId)) {
             graph.addNode(personId, {
               label: `Person ${personId}`,
-              x: Math.random() * 1000, // Position aléatoire initiale
+              x: Math.random() * 1000,
               y: Math.random() * 1000,
               size: 10,
               color: "#3498db",
@@ -57,18 +59,35 @@ const SigmaGraph: React.FC = () => {
           if (!graph.hasNode(siteId) && lat !== null && lon !== null) {
             graph.addNode(siteId, {
               label: siteName,
-              x: lon * 100, // Ajustement des coordonnées GPS
-              y: -lat * 100, // Inversion de latitude pour correspondre à l'affichage classique
+              x: lon * 100,
+              y: -lat * 100,
               size: 15,
               color: "#2ecc71",
             });
           }
 
-          // Ajout de la relation entre la personne et le site
-          if (!graph.hasEdge(personId, siteId)) {
-            graph.addEdge(personId, siteId, {
-              label: "UTILISE",
-              size: 3,
+          // Ajout d'un nœud intermédiaire pour afficher la relation
+          if (!graph.hasNode(relationId)) {
+            graph.addNode(relationId, {
+              label: relationLabel,
+              x: (graph.getNodeAttribute(personId, "x") + graph.getNodeAttribute(siteId, "x")) / 2,
+              y: (graph.getNodeAttribute(personId, "y") + graph.getNodeAttribute(siteId, "y")) / 2,
+              size: 8,
+              color: "#f1c40f",
+            });
+          }
+
+          // Ajout des relations sous forme de liens
+          if (!graph.hasEdge(personId, relationId)) {
+            graph.addEdge(personId, relationId, {
+              size: 2,
+              color: "#e74c3c",
+            });
+          }
+
+          if (!graph.hasEdge(relationId, siteId)) {
+            graph.addEdge(relationId, siteId, {
+              size: 2,
               color: "#e74c3c",
             });
           }
@@ -123,7 +142,7 @@ const SigmaGraph: React.FC = () => {
           sigmaInstance.getCamera().enable();
         });
       })
-      .catch((error) => console.error(" Erreur Neo4j:", error))
+      .catch((error) => console.error("Erreur Neo4j:", error))
       .finally(() => session.close());
 
     return () => {
