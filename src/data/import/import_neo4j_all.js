@@ -3,6 +3,25 @@ const { MongoClient } = require('mongodb');
 const neo4j = require('neo4j-driver');
 
 /**
+ * Vide la base Neo4j en supprimant tous les nœuds et relations.
+ */
+async function clearNeo4j(neo4jUri, neo4jUser, neo4jPassword) {
+  const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
+  const session = driver.session();
+  try {
+    console.log("Nettoyage de la base Neo4j en cours...");
+    await session.run("MATCH (n) DETACH DELETE n");
+    console.log("Base Neo4j effacée.");
+  } catch (error) {
+    console.error("Erreur lors du nettoyage de la base Neo4j :", error);
+    throw error;
+  } finally {
+    await session.close();
+    await driver.close();
+  }
+}
+
+/**
  * Récupère la liste distincte des id_antenne_relais (utilisés dans les fadettes)
  */
 async function getDistinctAntennaIds(mongoClient, dbName) {
@@ -130,18 +149,23 @@ async function importNeo4jFadettes(mongoUri, dbName, neo4jUri, neo4jUser, neo4jP
         console.warn("Enregistrement ignoré (source ou destination manquant) :", record);
         continue;
       }
-
-      const query = `
+      
+        const query = `
         MERGE (p1:Person {numero: $source})
         MERGE (p2:Person {numero: $destination})
         CREATE (p1)-[:COMMUNIQUE_AVEC {
-          date: $date,
-          heure: $heure,
-          type: $type,
-          duree: $duree,
-          id_antenne: $idAntenne
+            date: $date,
+            heure: $heure,
+            type: $type,
+            duree: $duree,
+            id_antenne: $idAntenne
         }]->(p2)
-      `;
+        WITH p1, p2, $date AS date, $idAntenne AS idAntenne
+        MATCH (s:Site { id_station_anfr: idAntenne })
+        MERGE (p1)-[:UTILISE { date: date }]->(s)
+        MERGE (p2)-[:UTILISE { date: date }]->(s)
+        `;
+
       const params = { source, destination, date, heure, type, duree, idAntenne };
 
       await session.run(query, params);
@@ -175,6 +199,9 @@ async function main() {
   }
 
   try {
+    // Étape 0 : Nettoyer la base Neo4j pour démarrer sur une base propre.
+    await clearNeo4j(NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD);
+
     // Étape 1 : Connexion à MongoDB pour récupérer la liste des antennes utilisées dans les fadettes
     const mongoClient = new MongoClient(MONGO_URI);
     await mongoClient.connect();
