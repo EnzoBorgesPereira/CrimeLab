@@ -1,92 +1,117 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {useRef, useState } from "react";
 import Sigma from "sigma";
 import Graph from "graphology";
 import neo4j from "neo4j-driver";
 import forceAtlas2 from "graphology-layout-forceatlas2";
-import { Coordinates } from "sigma/types";
 
+// Variables d'environnement pour Neo4j
 const driver = neo4j.driver(
   "neo4j+s://neo4j.teobacher.com:7687",
-  neo4j.auth.basic(import.meta.env.VITE_NEO4J_USERNAME, import.meta.env.VITE_NEO4J_PASSWORD)
+  neo4j.auth.basic(
+    import.meta.env.VITE_NEO4J_USERNAME,
+    import.meta.env.VITE_NEO4J_PASSWORD
+  )
 );
 
-const SigmaGraph: React.FC = () => {
+const DynamicQuerySigmaGraph: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sigmaInstanceRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
 
-  useEffect(() => {
+  // Requête Cypher dynamique
+  const [query, setQuery] = useState<string>(
+    "MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation"
+  );
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const runQuery = () => {
     if (!containerRef.current) return;
+    setLoading(true);
 
-    console.log("Connexion Neo4j...");
-
+    // Initialisation du graphe
     if (graphRef.current) {
-      graphRef.current.clear(); // Vider le graphe pour éviter les doublons
+      graphRef.current.clear();
     } else {
       graphRef.current = new Graph();
     }
-
-    const session = driver.session();
     const graph = graphRef.current;
+    const session = driver.session();
 
     session
-      .run("MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation")
+      .run(query)
       .then((result) => {
-        console.log(`Nombre de relations: ${result.records.length}`);
+        console.log(`Nombre d'enregistrements: ${result.records.length}`);
 
-        result.records.forEach((record, index) => {
+        const relationCenters: Record<string, { x: number; y: number }> = {};
+        let relationIndex = 0; // Index pour espacer les blocs de relations
+
+        // Rayon pour placer les personnes autour d'une relation
+        const relationRadius = 500;
+        const clusterSpacing = 8000; // Espacement entre les blocs
+
+        result.records.forEach((record) => {
           const personId = record.get("Numero").toString();
           const siteName = record.get("Commune");
-          const lat = record.get("Latitude");
-          const lon = record.get("Longitude");
+
           const relationLabel = record.get("Relation");
 
-          const siteId = `${siteName}-${index}`;
-          const relationId = `${personId}-${siteId}-rel`;
+          const siteId = `site-${siteName}`;
+          const relationNodeId = `rel-${relationLabel}`;
 
-          // Ajout des personnes (s'ils n'existent pas déjà)
-          if (!graph.hasNode(personId)) {
-            graph.addNode(personId, {
-              label: `Person ${personId}`,
-              x: Math.random() * 1000,
-              y: Math.random() * 1000,
-              size: 10,
-              color: "#3498db",
-            });
+          // Si la relation n'a pas encore de position, on lui attribue un centre
+          if (!relationCenters[relationNodeId]) {
+            relationCenters[relationNodeId] = {
+              x: relationIndex * clusterSpacing,
+              y: relationIndex * clusterSpacing,
+            };
+            relationIndex++;
           }
 
-          // Ajout des sites avec leur localisation GPS
-          if (!graph.hasNode(siteId) && lat !== null && lon !== null) {
-            graph.addNode(siteId, {
-              label: siteName,
-              x: lon * 100,
-              y: -lat * 100,
-              size: 15,
-              color: "#2ecc71",
-            });
-          }
-
-          // Ajout d'un nœud intermédiaire pour afficher la relation
-          if (!graph.hasNode(relationId)) {
-            graph.addNode(relationId, {
+          // Ajout du nœud de relation (point central du bloc)
+          if (!graph.hasNode(relationNodeId)) {
+            graph.addNode(relationNodeId, {
               label: relationLabel,
-              x: (graph.getNodeAttribute(personId, "x") + graph.getNodeAttribute(siteId, "x")) / 2,
-              y: (graph.getNodeAttribute(personId, "y") + graph.getNodeAttribute(siteId, "y")) / 2,
-              size: 8,
+              x: relationCenters[relationNodeId].x,
+              y: relationCenters[relationNodeId].y,
+              size: 20,
               color: "#f1c40f",
             });
           }
 
-          // Ajout des relations sous forme de liens
-          if (!graph.hasEdge(personId, relationId)) {
-            graph.addEdge(personId, relationId, {
+          // Ajout du nœud Site (rattaché à la relation)
+          if (!graph.hasNode(siteId)) {
+            const offsetX = relationCenters[relationNodeId].x + Math.random() * 600 - 300;
+            const offsetY = relationCenters[relationNodeId].y + Math.random() * 600 - 300;
+
+            graph.addNode(siteId, {
+              label: siteName,
+              x: offsetX,
+              y: offsetY,
+              size: 25,
+              color: "#2ecc71",
+            });
+
+            graph.addEdge(relationNodeId, siteId, {
               size: 2,
               color: "#e74c3c",
             });
           }
 
-          if (!graph.hasEdge(relationId, siteId)) {
-            graph.addEdge(relationId, siteId, {
+          // Ajout du nœud Personne (distribué en cercle autour du centre de relation)
+          if (!graph.hasNode(personId)) {
+            const angle = Math.random() * 2 * Math.PI;
+            const px = relationCenters[relationNodeId].x + Math.cos(angle) * relationRadius;
+            const py = relationCenters[relationNodeId].y + Math.sin(angle) * relationRadius;
+
+            graph.addNode(personId, {
+              label: `Person ${personId}`,
+              x: px,
+              y: py,
+              size: 10,
+              color: "#3498db",
+            });
+
+            graph.addEdge(personId, relationNodeId, {
               size: 2,
               color: "#e74c3c",
             });
@@ -94,7 +119,18 @@ const SigmaGraph: React.FC = () => {
         });
 
         console.log("Application du layout ForceAtlas2...");
-        forceAtlas2.assign(graph, { iterations: 100 });
+
+        // ForceAtlas2 amélioré pour séparer les blocs
+        forceAtlas2.assign(graph, {
+          iterations: 800,
+          settings: {
+            barnesHutOptimize: true,
+            slowDown: 0.1,
+            gravity: 0.2,
+            scalingRatio: 5,
+            adjustSizes: true,
+          },
+        });
 
         if (sigmaInstanceRef.current) {
           sigmaInstanceRef.current.kill();
@@ -107,69 +143,40 @@ const SigmaGraph: React.FC = () => {
 
         sigmaInstance.getCamera().animatedReset();
         sigmaInstance.getCamera().enable();
-
-        // Drag & Drop d'un nœud seul
-        let draggedNode: string | null = null;
-        let isDragging = false;
-
-        sigmaInstance.on("downNode", ({ node }) => {
-          draggedNode = node;
-          isDragging = true;
-          graph.setNodeAttribute(node, "color", "#e74c3c");
-          sigmaInstance.getCamera().disable();
-        });
-
-        sigmaInstance.getMouseCaptor().on("mousemove", (event) => {
-          if (draggedNode && isDragging) {
-            const newPos: Coordinates = sigmaInstance.viewportToGraph(event);
-            graph.setNodeAttribute(draggedNode, "x", newPos.x);
-            graph.setNodeAttribute(draggedNode, "y", newPos.y);
-          }
-        });
-
-        sigmaInstance.getMouseCaptor().on("mouseup", () => {
-          if (draggedNode) {
-            graph.setNodeAttribute(draggedNode, "color", "#3498db");
-          }
-          draggedNode = null;
-          isDragging = false;
-          sigmaInstance.getCamera().enable();
-        });
-
-        sigmaInstance.getMouseCaptor().on("mouseleave", () => {
-          draggedNode = null;
-          isDragging = false;
-          sigmaInstance.getCamera().enable();
-        });
       })
       .catch((error) => console.error("Erreur Neo4j:", error))
-      .finally(() => session.close());
-
-    return () => {
-      if (sigmaInstanceRef.current) {
-        sigmaInstanceRef.current.kill();
-        console.log("🧹 Nettoyage Sigma à la fermeture");
-      }
-    };
-  }, []);
+      .finally(() => {
+        session.close();
+        setLoading(false);
+      });
+  };
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Graph Neo4j avec Sigma.js</h1>
+      <h1>Graph Dynamique avec Sigma.js</h1>
+      <textarea
+        style={{ width: "100%", height: "100px" }}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <button onClick={runQuery} disabled={loading}>
+        {loading ? "Chargement..." : "Exécuter la requête"}
+      </button>
       <div
         ref={containerRef}
         id="viz-container"
         style={{
-          width: "1000px",
-          height: "700px",
+          width: "1200px",
+          height: "800px",
           border: "1px solid #ccc",
           backgroundColor: "#fff",
+          marginTop: "20px",
         }}
       >
-        Chargement...
+        Chargement du graphe...
       </div>
     </div>
   );
 };
 
-export default SigmaGraph;
+export default DynamicQuerySigmaGraph;
