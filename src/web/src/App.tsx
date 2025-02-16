@@ -18,7 +18,7 @@ const SigmaGraph: React.FC = () => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    console.log("📡 Connexion Neo4j...");
+    console.log("Connexion Neo4j...");
 
     if (graphRef.current) {
       graphRef.current.clear(); // Vider le graphe pour éviter les doublons
@@ -32,7 +32,7 @@ const SigmaGraph: React.FC = () => {
     session
       .run("MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude")
       .then((result) => {
-        console.log(`🔗 Nombre de relations: ${result.records.length}`);
+        console.log(` Nombre de relations: ${result.records.length}`);
 
         result.records.forEach((record, index) => {
           const personId = record.get("Numero").toString();
@@ -74,7 +74,7 @@ const SigmaGraph: React.FC = () => {
           }
         });
 
-        console.log("✅ Application du layout ForceAtlas2...");
+        console.log("Application du layout ForceAtlas2...");
         forceAtlas2.assign(graph, { iterations: 100 });
 
         if (sigmaInstanceRef.current) {
@@ -89,7 +89,7 @@ const SigmaGraph: React.FC = () => {
         sigmaInstance.getCamera().animatedReset();
         sigmaInstance.getCamera().enable();
 
-        // ✅ Drag & Drop d'un nœud seul
+        // Drag & Drop d'un nœud seul
         let draggedNode: string | null = null;
         let isDragging = false;
 
@@ -123,7 +123,7 @@ const SigmaGraph: React.FC = () => {
           sigmaInstance.getCamera().enable();
         });
       })
-      .catch((error) => console.error("❌ Erreur Neo4j:", error))
+      .catch((error) => console.error(" Erreur Neo4j:", error))
       .finally(() => session.close());
 
     return () => {
