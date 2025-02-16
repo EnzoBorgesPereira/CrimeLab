@@ -79,12 +79,12 @@ const SigmaGraph: React.FC = () => {
 
         if (sigmaInstanceRef.current) {
           sigmaInstanceRef.current.kill();
-          console.log("🗑️ Ancienne instance Sigma supprimée");
+          console.log("Ancienne instance Sigma supprimée");
         }
 
         const sigmaInstance = new Sigma(graph, containerRef.current as HTMLElement);
         sigmaInstanceRef.current = sigmaInstance;
-        console.log("🎨 Sigma initialisé");
+        console.log("Sigma initialisé");
 
         sigmaInstance.getCamera().animatedReset();
         sigmaInstance.getCamera().enable();
