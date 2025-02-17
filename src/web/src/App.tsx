@@ -34,9 +34,14 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
   // Requête par défaut
   const [query] = useState<string>(
-    "MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation LIMIT 50"
+    "MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation"
   );
   const [loading, setLoading] = useState<boolean>(false);
+
+  // MODAL: états simples
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeProps, setSelectedNodeProps] = useState<Record<string, any>>({});
 
   const runQuery = (cypher?: string) => {
     if (!containerRef.current) return;
@@ -44,7 +49,6 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
     const actualQuery = cypher || query;
 
-    // On utilise ou crée le graphe
     if (!graphRef.current) {
       graphRef.current = new Graph<NodeData, EdgeData>();
     } else {
@@ -58,9 +62,9 @@ const DynamicMultiQueryGraph: React.FC = () => {
       .then((result) => {
         console.log(`Nombre d'enregistrements: ${result.records.length}`);
 
-        // On fait des cas selon la requête
+        // Différents cas en fonction de la requête
         if (actualQuery.includes("COMMUNIQUE_AVEC")) {
-          // Cas MATCH (p:Person)-[r:COMMUNIQUE_AVEC]->(q:Person) RETURN p, r, q
+          // Cas COMMUNIQUE_AVEC
           result.records.forEach((record) => {
             const p = record.get("p");
             const q = record.get("q");
@@ -76,7 +80,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
                 x: Math.random() * 800,
                 y: Math.random() * 800,
                 color: "#3498db",
-                size: 15, // nœud plus grand
+                size: 15,
               });
             }
             if (!graph.hasNode(qId)) {
@@ -114,7 +118,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
             }
           });
         } else {
-          // Cas par défaut => Person -> REL -> Site
+          // Par défaut => Person -> REL -> Site
           result.records.forEach((record) => {
             const personId = record.get("Numero")?.toString();
             const siteName = record.get("Commune");
@@ -125,7 +129,6 @@ const DynamicMultiQueryGraph: React.FC = () => {
             const sNodeId = `Site-${siteName}`;
             const relNodeId = `Rel-${pNodeId}-${sNodeId}`;
 
-            // Person
             if (!graph.hasNode(pNodeId)) {
               graph.addNode(pNodeId, {
                 label: `Person ${personId}`,
@@ -135,8 +138,6 @@ const DynamicMultiQueryGraph: React.FC = () => {
                 size: 15,
               });
             }
-
-            // Site
             if (!graph.hasNode(sNodeId)) {
               graph.addNode(sNodeId, {
                 label: siteName,
@@ -146,8 +147,6 @@ const DynamicMultiQueryGraph: React.FC = () => {
                 size: 18,
               });
             }
-
-            // Relation (nœud intermédiaire)
             if (!graph.hasNode(relNodeId)) {
               const px = graph.getNodeAttribute(pNodeId, "x") ?? Math.random() * 800;
               const py = graph.getNodeAttribute(pNodeId, "y") ?? Math.random() * 800;
@@ -161,8 +160,6 @@ const DynamicMultiQueryGraph: React.FC = () => {
                 y: (py + sy) / 2,
               });
             }
-
-            // Arêtes
             if (!graph.hasEdge(pNodeId, relNodeId)) {
               graph.addEdge(pNodeId, relNodeId, { color: "#e74c3c", size: 2 });
             }
@@ -172,7 +169,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
           });
         }
 
-        // Application du layout ForceAtlas2
+        // Layout ForceAtlas2
         forceAtlas2.assign(graph, {
           iterations: 500,
           settings: {
@@ -196,14 +193,20 @@ const DynamicMultiQueryGraph: React.FC = () => {
         sigmaInstance.getCamera().animatedReset();
         sigmaInstance.getCamera().enable();
 
-        // Drag & Drop
+        // DRAG & DROP
         let draggedNode: string | null = null;
+        let draggedNodeOriginalColor: string | undefined; // On stocke la couleur d'origine
         let isDragging = false;
 
+        // Quand on clique sur un nœud
         sigmaInstance.on("downNode", ({ node }) => {
           draggedNode = node;
           isDragging = true;
+
+          // On mémorise la couleur avant de la remplacer
+          draggedNodeOriginalColor = graph.getNodeAttribute(node, "color");
           graph.setNodeAttribute(node, "color", "#e74c3c");
+
           sigmaInstance.getCamera().disable();
         });
 
@@ -217,11 +220,24 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
         sigmaInstance.getMouseCaptor().on("mouseup", () => {
           if (draggedNode) {
-            graph.setNodeAttribute(draggedNode, "color", "#2ecc71");
+            // On restaure la couleur initiale du nœud
+            if (draggedNodeOriginalColor) {
+              graph.setNodeAttribute(draggedNode, "color", draggedNodeOriginalColor);
+            }
           }
           draggedNode = null;
           isDragging = false;
           sigmaInstance.getCamera().enable();
+        });
+
+        // MODAL: Lorsque l'on clique sur un nœud, on affiche ses propriétés dans une popup
+        sigmaInstance.on("clickNode", ({ node }) => {
+          // On récupère les attributs de ce nœud
+          const props = graph.getNodeAttributes(node);
+          // On stocke l'ID et les props dans l'état, et on ouvre le modal
+          setSelectedNodeId(node);
+          setSelectedNodeProps(props);
+          setModalOpen(true);
         });
       })
       .catch((error) => {
@@ -261,12 +277,37 @@ const DynamicMultiQueryGraph: React.FC = () => {
         </button>
       </div>
 
-      <div ref={containerRef} style={styles.graphContainer} />
+      <div
+        ref={containerRef}
+        id="viz-container"
+        style={styles.graphContainer}
+      />
+
+      {/* MODAL: affichage si modalOpen est true */}
+      {modalOpen && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h3>
+              Détails du nœud :{" "}
+              <span style={{ color: "#007bff" }}>{selectedNodeId}</span>
+            </h3>
+            <ul>
+              {Object.entries(selectedNodeProps).map(([k, v]) => (
+                <li key={k}>
+                  <strong>{k}:</strong> {JSON.stringify(v)}
+                </li>
+              ))}
+            </ul>
+            <button style={styles.closeButton} onClick={() => setModalOpen(false)}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// Quelques styles inline pour une meilleure présentation
 const styles: Record<string, React.CSSProperties> = {
   page: {
     fontFamily: "Arial, sans-serif",
@@ -292,25 +333,6 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: "#eee",
     cursor: "pointer",
   },
-  textarea: {
-    width: "100%",
-    height: "80px",
-    marginTop: "10px",
-    resize: "vertical",
-    fontFamily: "monospace",
-    padding: "10px",
-    borderRadius: "4px",
-    border: "1px solid #ccc",
-  },
-  submitButton: {
-    marginTop: "10px",
-    padding: "10px 15px",
-    borderRadius: "4px",
-    backgroundColor: "#007bff",
-    color: "#fff",
-    border: "none",
-    cursor: "pointer",
-  },
   graphContainer: {
     width: "1200px",
     height: "800px",
@@ -318,6 +340,34 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "4px",
     backgroundColor: "#fff",
     margin: "20px auto",
+  },
+  // Modal overlay
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: "20px",
+    borderRadius: "4px",
+    minWidth: "300px",
+    maxWidth: "60%",
+  },
+  closeButton: {
+    marginTop: "10px",
+    backgroundColor: "#dc3545",
+    color: "#fff",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: "4px",
+    cursor: "pointer",
   },
 };
 
