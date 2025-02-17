@@ -13,6 +13,7 @@ const driver = neo4j.driver(
   )
 );
 
+
 type NodeData = {
   label: string;
   color?: string;
@@ -44,6 +45,17 @@ const DynamicMultiQueryGraph: React.FC = () => {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedNodeProps, setSelectedNodeProps] = useState<Record<string, any>>({});
+
+  const clearGraph = () => {
+    if (graphRef.current) {
+      graphRef.current.clear(); // Vider les nœuds et arêtes
+    }
+  
+    if (sigmaInstanceRef.current) {
+      sigmaInstanceRef.current.kill(); // Détruire l'instance Sigma
+      sigmaInstanceRef.current = null;
+    }
+  };
 
   const runQuery = (cypher?: string) => {
     if (!containerRef.current) return;
@@ -264,7 +276,10 @@ const DynamicMultiQueryGraph: React.FC = () => {
         <select
           id="affaireSelect"
           value={selectedAffaire}
-          onChange={(e) => setSelectedAffaire(e.target.value)}
+          onChange={(e) => {
+            setSelectedAffaire(e.target.value);
+            clearGraph(); 
+          }}
           style={styles.button}
         >
           <option value="a_001">Affaire a_001</option>
