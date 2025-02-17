@@ -325,6 +325,10 @@ const DynamicMultiQueryGraph: React.FC = () => {
       >
         {loading ? "Chargement..." : "Liste des sites"}
       </button>
+
+      <button onClick={clearGraph} disabled={loading || !isImported} style={styles.button}>
+        Effacer
+      </button>
       </div>
 
           {isImported ? (
