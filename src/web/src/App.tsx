@@ -60,7 +60,8 @@ const DynamicMultiQueryGraph: React.FC = () => {
   const runQuery = (cypher?: string) => {
     if (!containerRef.current) return;
     setLoading(true);
-
+    clearGraph();
+    
     const actualQuery = cypher || query;
 
     if (!graphRef.current) {
@@ -264,6 +265,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
   };
 
   const handleImport = async () => {
+    clearGraph();
     await fetch(`http://localhost:3001/api/import?affaire=${selectedAffaire}`, { method: "POST" });
   };
 
