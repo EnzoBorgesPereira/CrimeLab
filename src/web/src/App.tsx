@@ -38,6 +38,8 @@ const DynamicMultiQueryGraph: React.FC = () => {
   );
   const [loading, setLoading] = useState<boolean>(false);
 
+  const [selectedAffaire, setSelectedAffaire] = useState("a_001");
+
   // MODAL: états simples
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -249,9 +251,29 @@ const DynamicMultiQueryGraph: React.FC = () => {
       });
   };
 
+  const handleImport = async () => {
+    await fetch(`http://localhost:3001/api/import?affaire=${selectedAffaire}`, { method: "POST" });
+  };
+
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>CrimeLab</h1>
+
+      <div>
+        <label htmlFor="affaireSelect">Sélectionner une affaire :</label>
+        <select
+          id="affaireSelect"
+          value={selectedAffaire}
+          onChange={(e) => setSelectedAffaire(e.target.value)}
+          style={styles.button}
+        >
+          <option value="a_001">Affaire a_001</option>
+          <option value="a_002">Affaire a_002</option>
+        </select>
+        <button onClick={handleImport} style={styles.button}>
+          Importer
+        </button>
+      </div>
 
       <div style={styles.buttonBar}>
         <button onClick={() => runQuery()} disabled={loading} style={styles.button}>
