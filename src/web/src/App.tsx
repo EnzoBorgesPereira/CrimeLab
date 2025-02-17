@@ -32,7 +32,8 @@ const DynamicMultiQueryGraph: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sigmaInstanceRef = useRef<Sigma<NodeData, EdgeData> | null>(null);
   const graphRef = useRef<Graph<NodeData, EdgeData> | null>(null);
-
+  const [isImported, setIsImported] = useState<boolean>(false);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
   // Requête par défaut
   const [query] = useState<string>(
     "MATCH (p:Person)-[u:UTILISE]->(s:Site) RETURN p.numero AS Numero, s.nom_com AS Commune, s.latitude AS Latitude, s.longitude AS Longitude, type(u) AS Relation"
@@ -266,7 +267,18 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
   const handleImport = async () => {
     clearGraph();
-    await fetch(`http://localhost:3001/api/import?affaire=${selectedAffaire}`, { method: "POST" });
+    setIsImporting(true); 
+    setIsImported(false); 
+  
+    try {
+      await fetch(`http://localhost:3001/api/import?affaire=${selectedAffaire}`, { method: "POST" });
+  
+      setIsImported(true); 
+    } catch (error) {
+      console.error("Erreur lors de l'import :", error);
+    } finally {
+      setIsImporting(false); 
+    }
   };
 
   return (
@@ -280,47 +292,48 @@ const DynamicMultiQueryGraph: React.FC = () => {
           value={selectedAffaire}
           onChange={(e) => {
             setSelectedAffaire(e.target.value);
-            clearGraph(); 
+            setIsImported(false); 
+            clearGraph();
           }}
           style={styles.button}
         >
           <option value="a_001">Affaire a_001</option>
           <option value="a_002">Affaire a_002</option>
         </select>
-        <button onClick={handleImport} style={styles.button}>
-          Importer
+        <button onClick={handleImport} style={styles.button} disabled={isImporting}>
+          {isImporting ? "Importation en cours..." : "Importer"}
         </button>
       </div>
-
+          
       <div style={styles.buttonBar}>
-        <button onClick={() => runQuery()} disabled={loading} style={styles.button}>
-          {loading ? "Chargement..." : "Utilise"}
-        </button>
+      <button onClick={() => runQuery()} disabled={loading || !isImported} style={styles.button}>
+        {loading ? "Chargement..." : "Utilise"}
+      </button>
 
-        <button
-          onClick={() =>
-            runQuery("MATCH (p:Person)-[r:COMMUNIQUE_AVEC]->(q:Person) RETURN p, r, q LIMIT 50")
-          }
-          disabled={loading}
-          style={styles.button}
-        >
-          {loading ? "Chargement..." : "Communique avec"}
-        </button>
+      <button
+        onClick={() => runQuery("MATCH (p:Person)-[r:COMMUNIQUE_AVEC]->(q:Person) RETURN p, r, q LIMIT 50")}
+        disabled={loading || !isImported}
+        style={styles.button}
+      >
+        {loading ? "Chargement..." : "Communique avec"}
+      </button>
 
-        <button
-          onClick={() => runQuery("MATCH (n:Site) RETURN n LIMIT 50")}
-          disabled={loading}
-          style={styles.button}
-        >
-          {loading ? "Chargement..." : "Liste des sites"}
-        </button>
+      <button
+        onClick={() => runQuery("MATCH (n:Site) RETURN n LIMIT 50")}
+        disabled={loading || !isImported}
+        style={styles.button}
+      >
+        {loading ? "Chargement..." : "Liste des sites"}
+      </button>
       </div>
 
-      <div
-        ref={containerRef}
-        id="viz-container"
-        style={styles.graphContainer}
-      />
+          {isImported ? (
+      <div ref={containerRef} id="viz-container" style={styles.graphContainer} />
+    ) : (
+      <p style={{ textAlign: "center", fontSize: "18px", color: "#666" }}>
+        Importez une affaire pour afficher le graphe.
+      </p>
+    )}
 
       {/* MODAL: affichage si modalOpen est true */}
       {modalOpen && (
