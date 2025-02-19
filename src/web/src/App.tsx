@@ -19,6 +19,9 @@ type NodeData = {
   x?: number;
   y?: number;
   size?: number; // taille du nœud
+  latitude?: number;
+  longitude?: number;
+  commune?: string;
 };
 
 type EdgeData = {
@@ -116,19 +119,22 @@ const DynamicMultiQueryGraph: React.FC = () => {
             }
           });
         } else if (actualQuery.includes("RETURN n") || actualQuery.includes("n:Site")) {
-          // Cas MATCH (n:Site) RETURN n
+          // Cas MATCH (n:Site) RETURN n (Liste des sites)
           result.records.forEach((record) => {
             const siteNode = record.get("n");
             if (!siteNode) return;
 
             const siteId = `Site-${siteNode.identity.toString()}`;
             if (!graph.hasNode(siteId)) {
-              graph.addNode(siteId, {
-                label: (siteNode.labels?.[0] || "Site") + " " + siteNode.identity,
+              graph.addNode(`Site-${siteNode.properties.nom_com}`, {
+                label: (siteNode.labels?.[0] || "Site") + " " + siteNode.properties.nom_com,
                 x: Math.random() * 800,
                 y: Math.random() * 800,
                 color: "#2ecc71",
                 size: 18,
+                latitude: siteNode.properties.latitude,
+                longitude: siteNode.properties.longitude,
+                commune: siteNode.properties.nom_com,
               });
             }
           });
@@ -160,6 +166,9 @@ const DynamicMultiQueryGraph: React.FC = () => {
                 y: Math.random() * 800,
                 color: "#2ecc71",
                 size: 18,
+                longitude: record.get("Longitude"),
+                latitude: record.get("Latitude"),
+                commune: siteName,
               });
             }
             if (!graph.hasNode(relNodeId)) {
@@ -269,7 +278,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
       setIsImporting(false);
     }
   };
-
+  
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>CrimeLab</h1>
@@ -351,13 +360,29 @@ const DynamicMultiQueryGraph: React.FC = () => {
             <h3>
               Détails du nœud : <span style={{ color: "#007bff" }}>{selectedNodeId}</span>
             </h3>
-            <ul>
-              {Object.entries(selectedNodeProps).map(([k, v]) => (
-                <li key={k}>
-                  <strong>{k}:</strong> {JSON.stringify(v)}
+            {selectedNodeId?.startsWith("Site-") && selectedNodeProps.latitude !== undefined ? (
+              <ul>
+                <li>
+                  <strong>Commune :</strong> {selectedNodeProps.commune}
                 </li>
-              ))}
-            </ul>
+                <li>
+                  <strong>Latitude :</strong> {selectedNodeProps.latitude}
+                </li>
+                <li>
+                  <strong>Longitude :</strong> {selectedNodeProps.longitude}
+                </li>
+              </ul>
+            ) : (
+              <ul>
+                {Object.entries(selectedNodeProps)
+                  .filter(([key]) => !["x", "y", "color", "size"].includes(key))
+                  .map(([k, v]) => (
+                    <li key={k}>
+                      <strong>{k}:</strong> {JSON.stringify(v)}
+                    </li>
+                  ))}
+              </ul>
+            )}
             <button style={styles.closeButton} onClick={() => setModalOpen(false)}>
               Fermer
             </button>
