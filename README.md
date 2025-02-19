@@ -1,9 +1,35 @@
 # CrimeLab
 
-Projet CrimeLab basé sur Neo4j, MangoDB et un langage de programmation
+Projet CrimeLab basé sur Neo4j, MangoDB et un front ReactTS.
+
+## Installation
+
+- Clonez le projet :
+
+```shell
+git clone
+```
+
+- Installer les dépendances :
 
 ```shell
 npm install
+```
+
+- Récuéprer les variables d'environnement (.env), contactez les auteurs pour les obtenir.
+
+- Lancer le projet front & API :
+
+Dans src/web:
+
+```shell
+npm start
+```
+
+Dans src/backend:
+
+```shell
+node app.js
 ```
 
 ## Groupe - 3
