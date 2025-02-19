@@ -13,7 +13,6 @@ const driver = neo4j.driver(
   )
 );
 
-
 type NodeData = {
   label: string;
   color?: string;
@@ -51,7 +50,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
     if (graphRef.current) {
       graphRef.current.clear(); // Vider les nœuds et arêtes
     }
-  
+
     if (sigmaInstanceRef.current) {
       sigmaInstanceRef.current.kill(); // Détruire l'instance Sigma
       sigmaInstanceRef.current = null;
@@ -62,7 +61,7 @@ const DynamicMultiQueryGraph: React.FC = () => {
     if (!containerRef.current) return;
     setLoading(true);
     clearGraph();
-    
+
     const actualQuery = cypher || query;
 
     if (!graphRef.current) {
@@ -211,18 +210,14 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
         // DRAG & DROP
         let draggedNode: string | null = null;
-        let draggedNodeOriginalColor: string | undefined; // On stocke la couleur d'origine
+        let draggedNodeOriginalColor: string | undefined;
         let isDragging = false;
 
-        // Quand on clique sur un nœud
         sigmaInstance.on("downNode", ({ node }) => {
           draggedNode = node;
           isDragging = true;
-
-          // On mémorise la couleur avant de la remplacer
           draggedNodeOriginalColor = graph.getNodeAttribute(node, "color");
           graph.setNodeAttribute(node, "color", "#e74c3c");
-
           sigmaInstance.getCamera().disable();
         });
 
@@ -235,22 +230,17 @@ const DynamicMultiQueryGraph: React.FC = () => {
         });
 
         sigmaInstance.getMouseCaptor().on("mouseup", () => {
-          if (draggedNode) {
-            // On restaure la couleur initiale du nœud
-            if (draggedNodeOriginalColor) {
-              graph.setNodeAttribute(draggedNode, "color", draggedNodeOriginalColor);
-            }
+          if (draggedNode && draggedNodeOriginalColor) {
+            graph.setNodeAttribute(draggedNode, "color", draggedNodeOriginalColor);
           }
           draggedNode = null;
           isDragging = false;
           sigmaInstance.getCamera().enable();
         });
 
-        // MODAL: Lorsque l'on clique sur un nœud, on affiche ses propriétés dans une popup
+        // MODAL: Affichage des propriétés du nœud
         sigmaInstance.on("clickNode", ({ node }) => {
-          // On récupère les attributs de ce nœud
           const props = graph.getNodeAttributes(node);
-          // On stocke l'ID et les props dans l'état, et on ouvre le modal
           setSelectedNodeId(node);
           setSelectedNodeProps(props);
           setModalOpen(true);
@@ -267,85 +257,99 @@ const DynamicMultiQueryGraph: React.FC = () => {
 
   const handleImport = async () => {
     clearGraph();
-    setIsImporting(true); 
-    setIsImported(false); 
-  
+    setIsImporting(true);
+    setIsImported(false);
+
     try {
       await fetch(`http://localhost:3001/api/import?affaire=${selectedAffaire}`, { method: "POST" });
-  
-      setIsImported(true); 
+      setIsImported(true);
     } catch (error) {
       console.error("Erreur lors de l'import :", error);
     } finally {
-      setIsImporting(false); 
+      setIsImporting(false);
     }
   };
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>CrimeLab</h1>
+      <div style={styles.authors}>
+        Réalisé par : Enzo Borges Pereira &amp; Téo Bacher
+      </div>
 
-      <div>
+      {/* Contrôles alignés */}
+      <div style={styles.controls}>
         <label htmlFor="affaireSelect">Sélectionner une affaire :</label>
         <select
           id="affaireSelect"
           value={selectedAffaire}
           onChange={(e) => {
             setSelectedAffaire(e.target.value);
-            setIsImported(false); 
+            setIsImported(false);
             clearGraph();
           }}
-          style={styles.button}
+          style={styles.dropdown}
         >
           <option value="a_001">Affaire a_001</option>
           <option value="a_002">Affaire a_002</option>
         </select>
-        <button onClick={handleImport} style={styles.button} disabled={isImporting}>
+        <button
+          onClick={handleImport}
+          disabled={isImporting}
+          style={isImporting ? { ...styles.button, ...styles.disabledButton } : styles.button}
+        >
           {isImporting ? "Importation en cours..." : "Importer"}
         </button>
       </div>
-          
+
       <div style={styles.buttonBar}>
-      <button onClick={() => runQuery()} disabled={loading || !isImported} style={styles.button}>
-        {loading ? "Chargement..." : "Utilise"}
-      </button>
+        <button
+          onClick={() => runQuery()}
+          disabled={loading || !isImported}
+          style={loading || !isImported ? { ...styles.button, ...styles.disabledButton } : styles.button}
+        >
+          {loading ? "Chargement..." : "Utilise"}
+        </button>
 
-      <button
-        onClick={() => runQuery("MATCH (p:Person)-[r:COMMUNIQUE_AVEC]->(q:Person) RETURN p, r, q LIMIT 50")}
-        disabled={loading || !isImported}
-        style={styles.button}
-      >
-        {loading ? "Chargement..." : "Communique avec"}
-      </button>
+        <button
+          onClick={() => runQuery("MATCH (p:Person)-[r:COMMUNIQUE_AVEC]->(q:Person) RETURN p, r, q LIMIT 50")}
+          disabled={loading || !isImported}
+          style={loading || !isImported ? { ...styles.button, ...styles.disabledButton } : styles.button}
+        >
+          {loading ? "Chargement..." : "Communique avec"}
+        </button>
 
-      <button
-        onClick={() => runQuery("MATCH (n:Site) RETURN n LIMIT 50")}
-        disabled={loading || !isImported}
-        style={styles.button}
-      >
-        {loading ? "Chargement..." : "Liste des sites"}
-      </button>
+        <button
+          onClick={() => runQuery("MATCH (n:Site) RETURN n LIMIT 50")}
+          disabled={loading || !isImported}
+          style={loading || !isImported ? { ...styles.button, ...styles.disabledButton } : styles.button}
+        >
+          {loading ? "Chargement..." : "Liste des sites"}
+        </button>
 
-      <button onClick={clearGraph} disabled={loading || !isImported} style={styles.button}>
-        Effacer
-      </button>
+        <button
+          onClick={clearGraph}
+          disabled={loading || !isImported}
+          style={loading || !isImported ? { ...styles.buttonClear, ...styles.disabledButton } : styles.buttonClear}
+        >
+          Effacer
+        </button>
       </div>
 
-          {isImported ? (
-      <div ref={containerRef} id="viz-container" style={styles.graphContainer} />
-    ) : (
-      <p style={{ textAlign: "center", fontSize: "18px", color: "#666" }}>
-        Importez une affaire pour afficher le graphe.
-      </p>
-    )}
+      {isImported ? (
+        <div ref={containerRef} id="viz-container" style={styles.graphContainer} />
+      ) : (
+        <p style={styles.infoText}>
+          Importez une affaire pour afficher le graphe.
+        </p>
+      )}
 
-      {/* MODAL: affichage si modalOpen est true */}
+      {/* Modal pour afficher les détails d'un nœud */}
       {modalOpen && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
             <h3>
-              Détails du nœud :{" "}
-              <span style={{ color: "#007bff" }}>{selectedNodeId}</span>
+              Détails du nœud : <span style={{ color: "#007bff" }}>{selectedNodeId}</span>
             </h3>
             <ul>
               {Object.entries(selectedNodeProps).map(([k, v]) => (
@@ -367,14 +371,35 @@ const DynamicMultiQueryGraph: React.FC = () => {
 const styles: Record<string, React.CSSProperties> = {
   page: {
     fontFamily: "Arial, sans-serif",
-    backgroundColor: "#f8f9fa",
+    background: "linear-gradient(135deg, #f0f4f8, #d9e2ec)",
     minHeight: "100vh",
     padding: "20px",
   },
   title: {
-    marginBottom: "20px",
+    marginBottom: "10px",
     color: "#333",
     textAlign: "center",
+    textShadow: "1px 1px 2px #aaa",
+  },
+  authors: {
+    textAlign: "center",
+    color: "#444",
+    marginBottom: "20px",
+    fontSize: "16px",
+  },
+  controls: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "20px",
+  },
+  dropdown: {
+    padding: "10px 15px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
+    backgroundColor: "#fff",
+    cursor: "pointer",
   },
   buttonBar: {
     display: "flex",
@@ -385,9 +410,23 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     padding: "10px 15px",
     borderRadius: "4px",
-    border: "1px solid #ccc",
-    backgroundColor: "#eee",
+    border: "none",
+    backgroundColor: "#007bff",
+    color: "#fff",
     cursor: "pointer",
+  },
+  buttonClear: {
+    padding: "10px 15px",
+    borderRadius: "4px",
+    border: "none",
+    backgroundColor: "#ff4747",
+    color: "#fff",
+    cursor: "pointer",
+  },
+  disabledButton: {
+    backgroundColor: "#aaa",
+    cursor: "not-allowed",
+    opacity: 0.7,
   },
   graphContainer: {
     width: "1200px",
@@ -396,8 +435,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "4px",
     backgroundColor: "#fff",
     margin: "20px auto",
+    boxShadow: "0px 2px 10px rgba(0,0,0,0.1)",
   },
-  // Modal overlay
+  infoText: {
+    textAlign: "center",
+    fontSize: "18px",
+    color: "#666",
+  },
   modalOverlay: {
     position: "fixed",
     top: 0,
