@@ -393,6 +393,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     marginBottom: "20px",
+    flexWrap: "wrap",
   },
   dropdown: {
     padding: "10px 15px",
@@ -406,6 +407,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "10px",
     marginBottom: "10px",
     justifyContent: "center",
+    flexWrap: "wrap",
   },
   button: {
     padding: "10px 15px",
@@ -429,8 +431,9 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0.7,
   },
   graphContainer: {
-    width: "1200px",
-    height: "800px",
+    width: "100%",
+    maxWidth: "1200px",
+    height: "80vh",
     border: "1px solid #ccc",
     borderRadius: "4px",
     backgroundColor: "#fff",
@@ -452,13 +455,14 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    padding: "10px",
   },
   modalContent: {
     backgroundColor: "#fff",
     padding: "20px",
     borderRadius: "4px",
     minWidth: "300px",
-    maxWidth: "60%",
+    maxWidth: "90%",
   },
   closeButton: {
     marginTop: "10px",
